@@ -10,6 +10,11 @@ Demo how to connect to MCP servers to book meeting and tell a joke
 ![MCP-2](./images/MCP-2.jpg)
 ![MCP-3](./images/MCP-3.jpg)
 
+### Copilot Studio Agent Flows
+Showcase how agent flows can streamline ticket creation and automate responses with commonly used solutions.
+![Copilot-Studio-AutoIT](./images/Copilot-Studio-AutoIT.jpg)
+![Copilot-Studio-AutoIT-Email](./images/Copilot-Studio-AutoIT-Email.jpg)
+
 ### Azure MCP
 Start MCP server from mcp.json file.
 ```
