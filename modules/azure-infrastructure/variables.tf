@@ -1,6 +1,3 @@
-# Variables for the root terraform configuration
-# These variables are passed to the azure-infrastructure module
-
 variable "environment" {
   description = "Environment name (e.g., dev, staging, prod)"
   type        = string

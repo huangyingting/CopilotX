@@ -1,30 +1,54 @@
-# Azure Infrastructure for CopilotX
+# Azure Infrastructure Terraform Configuration
 
-This directory contains Terraform configuration files for deploying the CopilotX infrastructure on Azure, based on the architecture diagram that includes:
+This Terraform configuration deploys a complete Azure infrastructure stack for the CopilotX project using a **reusable module structure**. The configuration includes AKS cluster, databases, monitoring, and networking components based on the provided architecture diagram.
 
-## Architecture Components
+## 🏗️ Infrastructure Components
 
-### Core Infrastructure
-- **Azure Kubernetes Service (AKS)** - Container orchestration platform
-- **Azure Container Registry (ACR)** - Container image storage
-- **Azure Load Balancer** - Network load balancing (via Application Gateway)
-- **Azure Key Vault** - Secrets and certificate management
-- **Virtual Network** - Network isolation and security
+### Core Azure Resources
+- **Azure Kubernetes Service (AKS)** with auto-scaling node pools (1-10 nodes)
+- **Azure Container Registry (ACR)** for container image storage
+- **Azure Application Gateway** for load balancing and ingress
+- **Azure Key Vault** for secrets management with proper access policies
+- **Virtual Network** with dedicated subnets for AKS and Application Gateway
 
 ### Data Services
-- **Azure SQL Database** - Relational database for Service 1
-- **Azure Cosmos DB** - NoSQL database for Services 2 & 3
+- **Azure SQL Database** for Service 1 with firewall rules
+- **Azure Cosmos DB** with SQL API for Services 2 & 3
+- Connection strings securely stored in Key Vault
 
-### Monitoring & Logging
-- **Azure Monitor** - Infrastructure monitoring
-- **Log Analytics Workspace** - Centralized logging
-- **Application Insights** - Application performance monitoring
+### Monitoring & Observability
+- **Azure Monitor** with Log Analytics workspace
+- **Application Insights** for application performance monitoring
 
-### Kubernetes Components (Deployed via Helm)
-- **NGINX Ingress Controller** - HTTP/HTTPS load balancing
-- **Backend Services** - Three microservices with auto-scaling
-- **Prometheus** - Metrics collection and monitoring
-- **Elasticsearch** - Log aggregation and search
+## 📁 File Structure
+
+```
+terraform/
+├── main.tf                    # Root configuration using the module
+├── variables.tf              # Root variable definitions
+├── outputs.tf                # Root output definitions
+├── terraform.tfvars.example  # Example variable values
+├── README.md                 # This file
+└── modules/
+    └── azure-infrastructure/
+        ├── main.tf           # Module infrastructure resources
+        ├── variables.tf      # Module variable definitions
+        ├── outputs.tf        # Module output definitions
+        └── README.md         # Module documentation
+```
+
+## 🔧 Module Structure
+
+This configuration uses a **reusable Terraform module** structure:
+
+- **Root Configuration** (`terraform/`): Contains provider configurations, backend setup, and calls the azure-infrastructure module
+- **Module** (`modules/azure-infrastructure/`): Contains the self-contained, reusable infrastructure code
+
+### Benefits of This Structure
+- **Reusability**: The module can be used in different environments or projects
+- **Maintainability**: Clear separation between module logic and configuration
+- **Testability**: Module can be tested independently
+- **Composability**: Multiple modules can be combined easily
 
 ## Prerequisites
 
@@ -97,17 +121,24 @@ terraform plan
 terraform apply
 ```
 
-## File Structure
+## Using the Module
 
-```
-terraform/
-├── backend.tf              # Remote state configuration
-├── main.tf                 # Main infrastructure resources
-├── providers.tf            # Provider configurations
-├── variables.tf            # Input variable definitions
-├── outputs.tf              # Output value definitions
-├── terraform.tfvars.example # Example variable values
-└── README.md               # This documentation
+The root configuration in this directory uses the azure-infrastructure module. You can also use the module directly in other configurations:
+
+```hcl
+module "azure_infrastructure" {
+  source = "./modules/azure-infrastructure"
+
+  # Required variables
+  sql_admin_password = var.sql_admin_password
+
+  # Optional variables
+  environment         = "production"
+  location           = "West US 2"
+  resource_group_name = "rg-copilotx-prod"
+  
+  # Additional customization...
+}
 ```
 
 ## GitHub Actions Integration
@@ -132,15 +163,6 @@ TF_STATE_CONTAINER_NAME=tfstate
 
 # Database Configuration
 SQL_ADMIN_PASSWORD=your-secure-sql-password
-
-# Container Registry (populated after deployment)
-ACR_LOGIN_SERVER=your-acr-name.azurecr.io
-ACR_USERNAME=your-acr-username
-ACR_PASSWORD=your-acr-password
-
-# AKS Configuration (populated after deployment)
-RESOURCE_GROUP_NAME=your-resource-group-name
-AKS_CLUSTER_NAME=your-aks-cluster-name
 ```
 
 ### Workflows
@@ -149,59 +171,18 @@ AKS_CLUSTER_NAME=your-aks-cluster-name
 2. **`container-build.yml`** - Builds and pushes container images
 3. **`app-deploy.yml`** - Deploys applications to AKS
 
+## Module Documentation
+
+For detailed information about the azure-infrastructure module, including all variables and outputs, see:
+- [Module README](./modules/azure-infrastructure/README.md)
+
 ## Security Considerations
 
 - **Service Principal** has minimal required permissions
 - **Key Vault** stores sensitive configuration securely
 - **Network Security Groups** restrict traffic flow
-- **Azure Policy** enforces compliance standards
 - **RBAC** controls access to AKS cluster
-
-## Monitoring and Observability
-
-- **Prometheus** collects metrics from applications
-- **Grafana** provides visualization dashboards
-- **Elasticsearch** centralizes application logs
-- **Azure Monitor** tracks infrastructure health
-- **Application Insights** monitors application performance
-
-## Scaling Configuration
-
-### Manual Scaling
-```bash
-# Scale AKS nodes
-az aks scale --resource-group myResourceGroup --name myAKSCluster --node-count 5
-
-# Scale application pods
-kubectl scale deployment service1 --replicas=5 -n backend
-```
-
-### Auto-scaling
-- **Cluster Autoscaler** automatically scales AKS nodes
-- **Horizontal Pod Autoscaler** scales Service 3 based on CPU/memory
-- **Vertical Pod Autoscaler** can be configured for right-sizing
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Resource Name Conflicts**: Ensure globally unique names for ACR and Key Vault
-2. **Permission Errors**: Verify service principal has Contributor role
-3. **Network Connectivity**: Check NSG rules and subnet configurations
-4. **Storage Backend**: Ensure storage account exists and is accessible
-
-### Useful Commands
-
-```bash
-# Check Terraform state
-terraform state list
-
-# Import existing resource
-terraform import azurerm_resource_group.main /subscriptions/SUB_ID/resourceGroups/RG_NAME
-
-# Destroy infrastructure (use with caution)
-terraform destroy
-```
+- **Sensitive outputs** are properly marked and protected
 
 ## Cost Optimization
 
