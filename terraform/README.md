@@ -1,8 +1,6 @@
 # Azure Infrastructure Terraform Configuration
 
-# Azure Infrastructure Terraform Configuration
-
-This Terraform configuration deploys a complete Azure infrastructure stack for the CopilotX project as a **self-contained, reusable module**. The configuration includes AKS cluster, databases, monitoring, and networking components based on the provided architecture diagram.
+This Terraform configuration deploys a complete Azure infrastructure stack for the CopilotX project using **modular, reusable components**. Each Azure service is implemented as a separate module, making the configuration highly maintainable and reusable. The configuration includes AKS cluster, databases, monitoring, and networking components based on the provided architecture diagram.
 
 ## 🏗️ Infrastructure Components
 
@@ -22,31 +20,90 @@ This Terraform configuration deploys a complete Azure infrastructure stack for t
 - **Azure Monitor** with Log Analytics workspace
 - **Application Insights** for application performance monitoring
 
-## 📁 File Structure
+## 📁 Modular File Structure
 
 ```
 terraform/
-├── main.tf                    # Self-contained infrastructure resources
+├── main.tf                    # Module calls and provider configuration
 ├── variables.tf              # All configurable parameters as variables
-├── outputs.tf                # All resource identifiers as outputs
-├── terraform.tfvars.example  # Example variable values
-└── README.md                 # This file
+├── outputs.tf                # All resource outputs from modules
+├── terraform.tfvars.example  # Example configuration values
+├── README.md                 # This documentation
+└── modules/                  # Reusable modules for each service
+    ├── resource_group/       # Resource Group module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── networking/           # Virtual Network and Subnets module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── monitoring/           # Log Analytics and Application Insights module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── acr/                  # Azure Container Registry module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── aks/                  # Azure Kubernetes Service module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── key_vault/            # Azure Key Vault module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── sql_database/         # SQL Server and Database module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    ├── cosmos_db/            # Cosmos DB module
+    │   ├── main.tf
+    │   ├── variables.tf
+    │   └── outputs.tf
+    └── application_gateway/  # Application Gateway module
+        ├── main.tf
+        ├── variables.tf
+        └── outputs.tf
 ```
 
-## 🔧 Self-Contained Module Structure
+## 🧩 Module Architecture
 
-This configuration is designed as a **standard, self-contained Terraform module**:
+Each module is designed to be:
+- **Self-contained**: Complete functionality for a specific Azure service
+- **Reusable**: Can be used in different environments or projects
+- **Configurable**: All parameters exposed as variables
+- **Observable**: All resource outputs available for external use
 
-- **All configurable parameters** are exposed as variables in `variables.tf`
-- **All created resource identifiers** are exposed as outputs in `outputs.tf`
-- **Complete infrastructure definition** is contained in `main.tf`
-- **Provider configurations** are included for immediate usability
+### Module Dependencies
+```
+resource_group (base)
+├── networking (requires: resource_group)
+├── monitoring (requires: resource_group)
+├── acr (requires: resource_group)
+├── sql_database (requires: resource_group)
+├── cosmos_db (requires: resource_group)
+├── aks (requires: resource_group, networking, monitoring, acr)
+├── key_vault (requires: resource_group, aks)
+└── application_gateway (requires: resource_group, networking)
+```
+## 🔧 Modular Architecture Benefits
 
-### Benefits of This Structure
-- **Reusability**: Can be used directly or as a module in other configurations
-- **Maintainability**: Standard Terraform structure with clear separation
-- **Flexibility**: All aspects configurable through variables
-- **Transparency**: All resource identifiers available as outputs
+This configuration is designed with **reusable, modular components**:
+
+- **Service-specific modules**: Each Azure service has its own dedicated module
+- **Clear dependencies**: Explicit module dependencies for proper resource ordering
+- **Configurable parameters**: All module inputs are exposed as variables
+- **Comprehensive outputs**: All resource identifiers and connection strings available
+- **Maintainable structure**: Standard Terraform module pattern for each service
+
+### Benefits of This Modular Structure
+- **Reusability**: Individual modules can be used in other projects
+- **Maintainability**: Easy to update, test, and modify individual services
+- **Scalability**: Add new services by creating additional modules
+- **Flexibility**: Mix and match modules based on requirements
+- **Separation of Concerns**: Each module handles a specific responsibility
 
 ## Prerequisites
 

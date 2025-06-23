@@ -1,5 +1,5 @@
 # Azure Infrastructure Terraform Configuration
-# Self-contained, reusable Terraform module for Azure infrastructure deployment
+# Modular Terraform configuration using reusable modules for each Azure service
 terraform {
   required_version = ">= 1.0"
   required_providers {
@@ -51,368 +51,182 @@ data "azurerm_client_config" "current" {}
 
 data "azuread_client_config" "current" {}
 
-# Resource Group
-resource "azurerm_resource_group" "main" {
-  name     = "${var.resource_group_name}-${var.environment}"
-  location = var.location
+# Module calls for each Azure service component
 
-  tags = merge(var.tags, {
-    Name        = "${var.resource_group_name}-${var.environment}"
-    Environment = var.environment
-  })
+# Resource Group Module
+module "resource_group" {
+  source = "./modules/resource_group"
+
+  resource_group_name = var.resource_group_name
+  environment         = var.environment
+  location            = var.location
+  tags                = var.tags
 }
 
-# Virtual Network
-resource "azurerm_virtual_network" "main" {
-  name                = "${var.vnet_name}-${var.environment}"
-  address_space       = var.vnet_address_space
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
+# Networking Module
+module "networking" {
+  source = "./modules/networking"
 
-  tags = merge(var.tags, {
-    Name        = "${var.vnet_name}-${var.environment}"
-    Environment = var.environment
-  })
+  vnet_name                           = var.vnet_name
+  environment                         = var.environment
+  location                            = var.location
+  resource_group_name                 = module.resource_group.resource_group_name
+  vnet_address_space                  = var.vnet_address_space
+  aks_subnet_address_prefixes         = var.aks_subnet_address_prefixes
+  app_gateway_subnet_address_prefixes = var.app_gateway_subnet_address_prefixes
+  tags                                = var.tags
+
+  depends_on = [module.resource_group]
 }
 
-# AKS Subnet
-resource "azurerm_subnet" "aks" {
-  name                 = "snet-aks-${var.environment}"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = var.aks_subnet_address_prefixes
+# Monitoring Module
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  log_analytics_workspace_name = var.log_analytics_workspace_name
+  application_insights_name     = var.application_insights_name
+  environment                   = var.environment
+  location                      = var.location
+  resource_group_name           = module.resource_group.resource_group_name
+  tags                          = var.tags
+
+  depends_on = [module.resource_group]
 }
 
-# Application Gateway Subnet
-resource "azurerm_subnet" "app_gateway" {
-  name                 = "snet-appgw-${var.environment}"
-  resource_group_name  = azurerm_resource_group.main.name
-  virtual_network_name = azurerm_virtual_network.main.name
-  address_prefixes     = var.app_gateway_subnet_address_prefixes
+# Azure Container Registry Module
+module "acr" {
+  source = "./modules/acr"
+
+  acr_name            = var.acr_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group_name
+  acr_sku             = var.acr_sku
+  tags                = var.tags
+
+  depends_on = [module.resource_group]
 }
 
-# Log Analytics Workspace
-resource "azurerm_log_analytics_workspace" "main" {
-  name                = "${var.log_analytics_workspace_name}-${var.environment}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  sku                 = "PerGB2018"
-  retention_in_days   = 30
+# AKS Cluster Module
+module "aks" {
+  source = "./modules/aks"
 
-  tags = merge(var.tags, {
-    Name        = "${var.log_analytics_workspace_name}-${var.environment}"
-    Environment = var.environment
-  })
+  cluster_name                   = var.cluster_name
+  environment                    = var.environment
+  location                       = var.location
+  resource_group_name            = module.resource_group.resource_group_name
+  kubernetes_version             = var.kubernetes_version
+  node_count                     = var.node_count
+  node_size                      = var.node_size
+  aks_subnet_id                  = module.networking.aks_subnet_id
+  enable_auto_scaling            = var.enable_auto_scaling
+  min_node_count                 = var.min_node_count
+  max_node_count                 = var.max_node_count
+  log_analytics_workspace_id     = module.monitoring.log_analytics_workspace_id
+  acr_id                         = module.acr.acr_id
+  azure_policy_enabled           = var.azure_policy_enabled
+  tags                           = var.tags
+
+  depends_on = [module.resource_group, module.networking, module.monitoring, module.acr]
 }
 
-# Application Insights
-resource "azurerm_application_insights" "main" {
-  name                = "${var.application_insights_name}-${var.environment}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  workspace_id        = azurerm_log_analytics_workspace.main.id
-  application_type    = "web"
+# Key Vault Module
+module "key_vault" {
+  source = "./modules/key_vault"
 
-  tags = merge(var.tags, {
-    Name        = "${var.application_insights_name}-${var.environment}"
-    Environment = var.environment
-  })
+  key_vault_name          = var.key_vault_name
+  environment             = var.environment
+  location                = var.location
+  resource_group_name     = module.resource_group.resource_group_name
+  tenant_id               = data.azurerm_client_config.current.tenant_id
+  current_user_object_id  = data.azurerm_client_config.current.object_id
+  aks_principal_id        = module.aks.aks_identity_principal_id
+  tags                    = var.tags
+
+  depends_on = [module.resource_group, module.aks]
 }
 
-# Azure Container Registry
-resource "azurerm_container_registry" "main" {
-  name                = "${var.acr_name}${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-  sku                 = var.acr_sku
-  admin_enabled       = true
+# SQL Database Module
+module "sql_database" {
+  source = "./modules/sql_database"
 
-  tags = merge(var.tags, {
-    Name        = "${var.acr_name}-${var.environment}"
-    Environment = var.environment
-  })
+  sql_server_name     = var.sql_server_name
+  sql_database_name   = var.sql_database_name
+  environment         = var.environment
+  location            = var.location
+  resource_group_name = module.resource_group.resource_group_name
+  sql_admin_username  = var.sql_admin_username
+  sql_admin_password  = var.sql_admin_password
+  tags                = var.tags
+
+  depends_on = [module.resource_group]
 }
 
-# AKS Cluster
-resource "azurerm_kubernetes_cluster" "main" {
-  name                = "${var.cluster_name}-${var.environment}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  dns_prefix          = "${var.cluster_name}-${var.environment}"
-  kubernetes_version  = var.kubernetes_version
+# Cosmos DB Module
+module "cosmos_db" {
+  source = "./modules/cosmos_db"
 
-  default_node_pool {
-    name                = "default"
-    node_count          = var.enable_auto_scaling ? null : var.node_count
-    vm_size             = var.node_size
-    vnet_subnet_id      = azurerm_subnet.aks.id
-    enable_auto_scaling = var.enable_auto_scaling
-    min_count           = var.enable_auto_scaling ? var.min_node_count : null
-    max_count           = var.enable_auto_scaling ? var.max_node_count : null
-  }
+  cosmosdb_account_name  = var.cosmosdb_account_name
+  cosmosdb_database_name = var.cosmosdb_database_name
+  environment            = var.environment
+  location               = var.location
+  resource_group_name    = module.resource_group.resource_group_name
+  tags                   = var.tags
 
-  identity {
-    type = "SystemAssigned"
-  }
-
-  network_profile {
-    network_plugin    = "azure"
-    load_balancer_sku = "standard"
-  }
-
-  oms_agent {
-    log_analytics_workspace_id = azurerm_log_analytics_workspace.main.id
-  }
-
-  azure_policy_enabled = true
-
-  tags = merge(var.tags, {
-    Name        = "${var.cluster_name}-${var.environment}"
-    Environment = var.environment
-  })
+  depends_on = [module.resource_group]
 }
 
-# Role assignment for AKS to pull from ACR
-resource "azurerm_role_assignment" "aks_acr" {
-  principal_id                     = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
-  role_definition_name             = "AcrPull"
-  scope                            = azurerm_container_registry.main.id
-  skip_service_principal_aad_check = true
-}
+# Application Gateway Module
+module "application_gateway" {
+  source = "./modules/application_gateway"
 
-# Key Vault
-resource "azurerm_key_vault" "main" {
-  name                       = "${var.key_vault_name}-${var.environment}"
-  location                   = azurerm_resource_group.main.location
-  resource_group_name        = azurerm_resource_group.main.name
-  tenant_id                  = data.azurerm_client_config.current.tenant_id
-  sku_name                   = "standard"
-  soft_delete_retention_days = 7
-  purge_protection_enabled   = false
+  environment               = var.environment
+  location                  = var.location
+  resource_group_name       = module.resource_group.resource_group_name
+  app_gateway_subnet_id     = module.networking.app_gateway_subnet_id
+  tags                      = var.tags
 
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = data.azurerm_client_config.current.object_id
-
-    key_permissions = [
-      "Create",
-      "Get",
-      "List",
-      "Update",
-      "Delete",
-      "Purge",
-      "Recover"
-    ]
-
-    secret_permissions = [
-      "Get",
-      "List",
-      "Set",
-      "Delete",
-      "Purge",
-      "Recover"
-    ]
-
-    certificate_permissions = [
-      "Get",
-      "List",
-      "Create",
-      "Update",
-      "Delete",
-      "Purge",
-      "Recover"
-    ]
-  }
-
-  # Access policy for AKS
-  access_policy {
-    tenant_id = data.azurerm_client_config.current.tenant_id
-    object_id = azurerm_kubernetes_cluster.main.identity[0].principal_id
-
-    secret_permissions = [
-      "Get",
-      "List"
-    ]
-  }
-
-  tags = merge(var.tags, {
-    Name        = "${var.key_vault_name}-${var.environment}"
-    Environment = var.environment
-  })
-}
-
-# SQL Server
-resource "azurerm_mssql_server" "main" {
-  name                         = "${var.sql_server_name}-${var.environment}"
-  resource_group_name          = azurerm_resource_group.main.name
-  location                     = azurerm_resource_group.main.location
-  version                      = "12.0"
-  administrator_login          = var.sql_admin_username
-  administrator_login_password = var.sql_admin_password
-
-  tags = merge(var.tags, {
-    Name        = "${var.sql_server_name}-${var.environment}"
-    Environment = var.environment
-  })
-}
-
-# SQL Database
-resource "azurerm_mssql_database" "main" {
-  name      = "${var.sql_database_name}-${var.environment}"
-  server_id = azurerm_mssql_server.main.id
-  sku_name  = "Basic"
-
-  tags = merge(var.tags, {
-    Name        = "${var.sql_database_name}-${var.environment}"
-    Environment = var.environment
-  })
-}
-
-# SQL Firewall Rule for Azure Services
-resource "azurerm_mssql_firewall_rule" "azure_services" {
-  name             = "AllowAzureServices"
-  server_id        = azurerm_mssql_server.main.id
-  start_ip_address = "0.0.0.0"
-  end_ip_address   = "0.0.0.0"
-}
-
-# Cosmos DB Account
-resource "azurerm_cosmosdb_account" "main" {
-  name                = "${var.cosmosdb_account_name}-${var.environment}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  offer_type          = "Standard"
-  kind                = "GlobalDocumentDB"
-
-  consistency_policy {
-    consistency_level = "Session"
-  }
-
-  geo_location {
-    location          = azurerm_resource_group.main.location
-    failover_priority = 0
-  }
-
-  tags = merge(var.tags, {
-    Name        = "${var.cosmosdb_account_name}-${var.environment}"
-    Environment = var.environment
-  })
-}
-
-# Cosmos DB SQL Database
-resource "azurerm_cosmosdb_sql_database" "main" {
-  name                = "${var.cosmosdb_database_name}-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  account_name        = azurerm_cosmosdb_account.main.name
-}
-
-# Public IP for Application Gateway
-resource "azurerm_public_ip" "app_gateway" {
-  name                = "pip-appgw-${var.environment}"
-  location            = azurerm_resource_group.main.location
-  resource_group_name = azurerm_resource_group.main.name
-  allocation_method   = "Static"
-  sku                 = "Standard"
-
-  tags = merge(var.tags, {
-    Name        = "pip-appgw-${var.environment}"
-    Environment = var.environment
-  })
-}
-
-# Application Gateway
-resource "azurerm_application_gateway" "main" {
-  name                = "appgw-${var.environment}"
-  resource_group_name = azurerm_resource_group.main.name
-  location            = azurerm_resource_group.main.location
-
-  sku {
-    name     = "Standard_v2"
-    tier     = "Standard_v2"
-    capacity = 2
-  }
-
-  gateway_ip_configuration {
-    name      = "gateway-ip-configuration"
-    subnet_id = azurerm_subnet.app_gateway.id
-  }
-
-  frontend_port {
-    name = "frontend-port"
-    port = 80
-  }
-
-  frontend_ip_configuration {
-    name                 = "frontend-ip-configuration"
-    public_ip_address_id = azurerm_public_ip.app_gateway.id
-  }
-
-  backend_address_pool {
-    name = "backend-address-pool"
-  }
-
-  backend_http_settings {
-    name                  = "backend-http-settings"
-    cookie_based_affinity = "Disabled"
-    port                  = 80
-    protocol              = "Http"
-    request_timeout       = 60
-  }
-
-  http_listener {
-    name                           = "http-listener"
-    frontend_ip_configuration_name = "frontend-ip-configuration"
-    frontend_port_name             = "frontend-port"
-    protocol                       = "Http"
-  }
-
-  request_routing_rule {
-    name                       = "request-routing-rule"
-    rule_type                  = "Basic"
-    http_listener_name         = "http-listener"
-    backend_address_pool_name  = "backend-address-pool"
-    backend_http_settings_name = "backend-http-settings"
-    priority                   = 1
-  }
-
-  tags = merge(var.tags, {
-    Name        = "appgw-${var.environment}"
-    Environment = var.environment
-  })
+  depends_on = [module.resource_group, module.networking]
 }
 
 # Store secrets in Key Vault
 resource "azurerm_key_vault_secret" "sql_connection_string" {
   name         = "sql-connection-string"
-  value        = "Server=tcp:${azurerm_mssql_server.main.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.main.name};Persist Security Info=False;User ID=${var.sql_admin_username};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
-  key_vault_id = azurerm_key_vault.main.id
+  value        = module.sql_database.sql_connection_string
+  key_vault_id = module.key_vault.key_vault_id
+  
+  depends_on = [module.key_vault, module.sql_database]
 }
 
 resource "azurerm_key_vault_secret" "cosmosdb_connection_string" {
   name         = "cosmosdb-connection-string"
-  value        = azurerm_cosmosdb_account.main.primary_sql_connection_string
-  key_vault_id = azurerm_key_vault.main.id
+  value        = module.cosmos_db.cosmosdb_connection_string
+  key_vault_id = module.key_vault.key_vault_id
+  
+  depends_on = [module.key_vault, module.cosmos_db]
 }
 
 resource "azurerm_key_vault_secret" "acr_admin_password" {
   name         = "acr-admin-password"
-  value        = azurerm_container_registry.main.admin_password
-  key_vault_id = azurerm_key_vault.main.id
+  value        = module.acr.acr_admin_password
+  key_vault_id = module.key_vault.key_vault_id
+  
+  depends_on = [module.key_vault, module.acr]
 }
 
 # Configure Helm and Kubernetes providers using the AKS cluster
 provider "helm" {
   kubernetes {
-    host                   = azurerm_kubernetes_cluster.main.kube_config[0].host
-    client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config[0].client_certificate)
-    client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config[0].client_key)
-    cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config[0].cluster_ca_certificate)
+    host                   = module.aks.host
+    client_certificate     = base64decode(module.aks.client_certificate)
+    client_key             = base64decode(module.aks.client_key)
+    cluster_ca_certificate = base64decode(module.aks.cluster_ca_certificate)
   }
 }
 
 provider "kubernetes" {
-  host                   = azurerm_kubernetes_cluster.main.kube_config[0].host
-  client_certificate     = base64decode(azurerm_kubernetes_cluster.main.kube_config[0].client_certificate)
-  client_key             = base64decode(azurerm_kubernetes_cluster.main.kube_config[0].client_key)
-  cluster_ca_certificate = base64decode(azurerm_kubernetes_cluster.main.kube_config[0].cluster_ca_certificate)
+  host                   = module.aks.host
+  client_certificate     = base64decode(module.aks.client_certificate)
+  client_key             = base64decode(module.aks.client_key)
+  cluster_ca_certificate = base64decode(module.aks.cluster_ca_certificate)
 }

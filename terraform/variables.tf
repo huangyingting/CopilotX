@@ -159,3 +159,9 @@ variable "tags" {
     Project   = "CopilotX"
   }
 }
+
+variable "azure_policy_enabled" {
+  description = "Enable Azure Policy for AKS cluster"
+  type        = bool
+  default     = true
+}
