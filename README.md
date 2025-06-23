@@ -12,6 +12,10 @@ Demo how to connect to MCP servers to book meeting and tell a joke
 
 ### Copilot Studio Agent Flows
 Showcase how agent flows can streamline ticket creation and automate responses with commonly used solutions.
+
+Steps:
+- Submit an issue to https://forms.office.com/r/UJ2JG9r05i
+- Agent flow will kick in to create a ticket and provide common solutions
 ![Copilot-Studio-AutoIT](./images/Copilot-Studio-AutoIT.jpg)
 ![Copilot-Studio-AutoIT-Email](./images/Copilot-Studio-AutoIT-Email.jpg)
 
