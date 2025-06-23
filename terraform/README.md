@@ -1,6 +1,8 @@
 # Azure Infrastructure Terraform Configuration
 
-This Terraform configuration deploys a complete Azure infrastructure stack for the CopilotX project using a **reusable module structure**. The configuration includes AKS cluster, databases, monitoring, and networking components based on the provided architecture diagram.
+# Azure Infrastructure Terraform Configuration
+
+This Terraform configuration deploys a complete Azure infrastructure stack for the CopilotX project as a **self-contained, reusable module**. The configuration includes AKS cluster, databases, monitoring, and networking components based on the provided architecture diagram.
 
 ## 🏗️ Infrastructure Components
 
@@ -24,31 +26,27 @@ This Terraform configuration deploys a complete Azure infrastructure stack for t
 
 ```
 terraform/
-├── main.tf                    # Root configuration using the module
-├── variables.tf              # Root variable definitions
-├── outputs.tf                # Root output definitions
+├── main.tf                    # Self-contained infrastructure resources
+├── variables.tf              # All configurable parameters as variables
+├── outputs.tf                # All resource identifiers as outputs
 ├── terraform.tfvars.example  # Example variable values
-├── README.md                 # This file
-└── modules/
-    └── azure-infrastructure/
-        ├── main.tf           # Module infrastructure resources
-        ├── variables.tf      # Module variable definitions
-        ├── outputs.tf        # Module output definitions
-        └── README.md         # Module documentation
+└── README.md                 # This file
 ```
 
-## 🔧 Module Structure
+## 🔧 Self-Contained Module Structure
 
-This configuration uses a **reusable Terraform module** structure:
+This configuration is designed as a **standard, self-contained Terraform module**:
 
-- **Root Configuration** (`terraform/`): Contains provider configurations, backend setup, and calls the azure-infrastructure module
-- **Module** (`modules/azure-infrastructure/`): Contains the self-contained, reusable infrastructure code
+- **All configurable parameters** are exposed as variables in `variables.tf`
+- **All created resource identifiers** are exposed as outputs in `outputs.tf`
+- **Complete infrastructure definition** is contained in `main.tf`
+- **Provider configurations** are included for immediate usability
 
 ### Benefits of This Structure
-- **Reusability**: The module can be used in different environments or projects
-- **Maintainability**: Clear separation between module logic and configuration
-- **Testability**: Module can be tested independently
-- **Composability**: Multiple modules can be combined easily
+- **Reusability**: Can be used directly or as a module in other configurations
+- **Maintainability**: Standard Terraform structure with clear separation
+- **Flexibility**: All aspects configurable through variables
+- **Transparency**: All resource identifiers available as outputs
 
 ## Prerequisites
 
@@ -107,12 +105,8 @@ az storage container create \
 ### 4. Deployment
 
 ```bash
-# Initialize Terraform with backend
-terraform init \
-  -backend-config="resource_group_name=rg-terraform-state" \
-  -backend-config="storage_account_name=YOUR_STORAGE_ACCOUNT_NAME" \
-  -backend-config="container_name=tfstate" \
-  -backend-config="key=terraform.tfstate"
+# Initialize Terraform
+terraform init
 
 # Plan the deployment
 terraform plan
@@ -121,13 +115,13 @@ terraform plan
 terraform apply
 ```
 
-## Using the Module
+## Using as a Module
 
-The root configuration in this directory uses the azure-infrastructure module. You can also use the module directly in other configurations:
+This self-contained configuration can also be used as a module in other Terraform configurations:
 
 ```hcl
 module "azure_infrastructure" {
-  source = "./modules/azure-infrastructure"
+  source = "./path/to/this/terraform/directory"
 
   # Required variables
   sql_admin_password = var.sql_admin_password
@@ -140,6 +134,30 @@ module "azure_infrastructure" {
   # Additional customization...
 }
 ```
+
+## Configuration Variables
+
+All configurable parameters are exposed as variables. See `variables.tf` for the complete list with descriptions and default values. Key variables include:
+
+- `environment` - Environment name (dev/staging/prod)
+- `location` - Azure region for resources
+- `resource_group_name` - Name of the resource group
+- `sql_admin_password` - Required: Administrator password for SQL Server
+- `cluster_name` - Name of the AKS cluster
+- `enable_auto_scaling` - Enable auto scaling for AKS nodes
+- Network configuration variables for VNet and subnets
+
+## Resource Outputs
+
+All created resource identifiers are exposed as outputs. See `outputs.tf` for the complete list. Key outputs include:
+
+- Resource group information
+- AKS cluster details and authentication
+- Container registry login details
+- Key Vault URI and name
+- Database connection information
+- Virtual network and subnet IDs
+- Monitoring workspace details
 
 ## GitHub Actions Integration
 
@@ -170,11 +188,6 @@ SQL_ADMIN_PASSWORD=your-secure-sql-password
 1. **`terraform-deploy.yml`** - Deploys infrastructure changes
 2. **`container-build.yml`** - Builds and pushes container images
 3. **`app-deploy.yml`** - Deploys applications to AKS
-
-## Module Documentation
-
-For detailed information about the azure-infrastructure module, including all variables and outputs, see:
-- [Module README](./modules/azure-infrastructure/README.md)
 
 ## Security Considerations
 

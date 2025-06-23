@@ -1,5 +1,5 @@
-# Variables for the root terraform configuration
-# These variables are passed to the azure-infrastructure module
+# Variables for Azure Infrastructure Terraform Module
+# All configurable parameters are exposed as variables for maximum reusability
 
 variable "environment" {
   description = "Environment name (e.g., dev, staging, prod)"
