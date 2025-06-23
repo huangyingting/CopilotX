@@ -33,6 +33,61 @@ Based on the azure-arch.png image, please generate terraform deployment script
 ```
 ![Github-Copilot-Terraform](./images/Github-Copilot-Terraform.jpg)
 
-### Github Copilot SWE Agent
+### Github Copilot Coding Agent
+Use Github Copilot to generate Azure Terraform scripts and GitHub workflows for automating resource provisioning based on the provided architecture diagram.
+
+```
+Based on below mermaid diagram, develop Azure Terraform deployment scripts and GitHub workflows to automate resource provisioning.
+```
+
+```mermaid
+flowchart LR
+    subgraph AKS["Azure Kubernetes Service (AKS)"]
+        subgraph FrontEnd["Front end"]
+            Ingress["Ingress (Nginx)"]
+        end
+        subgraph BackEnd["Back-end services"]
+            BE1["Service 1"]
+            BE2["Service 2"]
+            BE3["Service 3 (Pod autoscaling)"]
+        end
+        subgraph Utility["Utility services"]
+            Elasticsearch["Elasticsearch"]
+            Prometheus["Prometheus"]
+        end
+    end
+
+    ClientApps["Client Apps"]
+    LoadBalancer["Azure Load Balancer"]
+    GithubWorkflows["Github Workflows (CI/CD)"]
+    Helm["Helm"]
+    ContainerRegistry["Container Registry"]
+    DevOps["Dev/Ops"]
+    AAD["Azure Active Directory"]
+    Monitor["Monitor"]
+    KeyVault["Azure Key Vault"]
+    SQL["SQL Database"]
+    CosmosDB["Cosmos DB"]
+
+    ClientApps --> LoadBalancer
+    LoadBalancer --> Ingress
+    Ingress --> BE1
+    Ingress --> BE2
+    Ingress --> BE3
+    BE1 --> SQL
+    BE2 --> CosmosDB
+    BE3 -.-> CosmosDB
+    Utility --> Elasticsearch
+    Utility --> Prometheus
+
+    GithubWorkflows -- docker push/pull --> ContainerRegistry
+    GithubWorkflows -- helm upgrade --> Helm
+    Helm --> AKS
+    DevOps -->|RBAC| AAD
+    AKS -.->|Virtual network| Monitor
+    AKS -.->|Virtual network| KeyVault
+```
+[Task: Develop Azure Terraform deployment scripts and GitHub workflows to automate resource provisioning](https://github.com/huangyingting/CopilotX/issues/1)
 
 ### Azure SRE Agent
+Azure SRE Agent brings these principles to your Azure hosted applications by providing an AI-powered tool that helps sustain production cloud environments.
