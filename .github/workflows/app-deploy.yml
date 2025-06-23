@@ -1,0 +1,391 @@
+name: Deploy Applications to AKS
+
+on:
+  workflow_run:
+    workflows: ["Build and Push Container Images"]
+    types:
+      - completed
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - staging
+        - prod
+      image_tag:
+        description: 'Container image tag to deploy'
+        required: true
+        default: 'latest'
+
+env:
+  HELM_VERSION: 3.13.0
+
+jobs:
+  deploy-infrastructure:
+    name: Deploy Infrastructure Components
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials \
+          --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+          --name ${{ secrets.AKS_CLUSTER_NAME }} \
+          --overwrite-existing
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: ${{ env.HELM_VERSION }}
+
+    - name: Add Helm repositories
+      run: |
+        helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+        helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+        helm repo add elastic https://helm.elastic.co
+        helm repo update
+
+    - name: Create namespaces
+      run: |
+        kubectl create namespace frontend --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace backend --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace utility --dry-run=client -o yaml | kubectl apply -f -
+        kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy NGINX Ingress Controller
+      run: |
+        helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+          --namespace frontend \
+          --set controller.service.type=LoadBalancer \
+          --set controller.service.annotations."service\.beta\.kubernetes\.io/azure-load-balancer-health-probe-request-path"=/healthz \
+          --wait --timeout=10m
+
+    - name: Deploy Prometheus and Grafana
+      run: |
+        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
+          --namespace monitoring \
+          --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+          --set prometheus.prometheusSpec.retention=30d \
+          --set grafana.adminPassword=${{ secrets.GRAFANA_ADMIN_PASSWORD }} \
+          --wait --timeout=10m
+
+    - name: Deploy Elasticsearch
+      run: |
+        helm upgrade --install elasticsearch elastic/elasticsearch \
+          --namespace utility \
+          --set replicas=1 \
+          --set minimumMasterNodes=1 \
+          --set resources.requests.cpu=100m \
+          --set resources.requests.memory=512Mi \
+          --set resources.limits.cpu=1000m \
+          --set resources.limits.memory=2Gi \
+          --wait --timeout=10m
+
+    - name: Wait for ingress controller IP
+      run: |
+        echo "Waiting for LoadBalancer IP..."
+        kubectl wait --namespace frontend \
+          --for=condition=ready pod \
+          --selector=app.kubernetes.io/component=controller \
+          --timeout=300s
+        
+        # Get the external IP
+        EXTERNAL_IP=""
+        while [ -z $EXTERNAL_IP ]; do
+          echo "Waiting for external IP..."
+          EXTERNAL_IP=$(kubectl get svc ingress-nginx-controller --namespace frontend --template="{{range .status.loadBalancer.ingress}}{{.ip}}{{end}}")
+          [ -z "$EXTERNAL_IP" ] && sleep 10
+        done
+        echo "External IP: $EXTERNAL_IP"
+        echo "INGRESS_IP=$EXTERNAL_IP" >> $GITHUB_ENV
+
+  deploy-applications:
+    name: Deploy Backend Services
+    runs-on: ubuntu-latest
+    needs: deploy-infrastructure
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Azure Login
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials \
+          --resource-group ${{ secrets.RESOURCE_GROUP_NAME }} \
+          --name ${{ secrets.AKS_CLUSTER_NAME }} \
+          --overwrite-existing
+
+    - name: Setup Helm
+      uses: azure/setup-helm@v3
+      with:
+        version: ${{ env.HELM_VERSION }}
+
+    - name: Create Helm charts directory
+      run: mkdir -p charts
+
+    - name: Create Service 1 Helm chart
+      run: |
+        cat > charts/service1-values.yaml << 'EOF'
+        replicaCount: 2
+        
+        image:
+          repository: ${{ secrets.ACR_LOGIN_SERVER }}/copilotx/service1
+          tag: "${{ github.event.inputs.image_tag || github.sha }}"
+          pullPolicy: Always
+        
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 80
+        
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+          hosts:
+            - host: service1.${{ secrets.DOMAIN_NAME || 'copilotx.local' }}
+              paths:
+                - path: /
+                  pathType: Prefix
+        
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        
+        autoscaling:
+          enabled: false
+        
+        env:
+          - name: SERVICE_NAME
+            value: "service1"
+          - name: SQL_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: app-secrets
+                key: sql-connection-string
+        EOF
+
+    - name: Create Service 2 Helm chart
+      run: |
+        cat > charts/service2-values.yaml << 'EOF'
+        replicaCount: 2
+        
+        image:
+          repository: ${{ secrets.ACR_LOGIN_SERVER }}/copilotx/service2
+          tag: "${{ github.event.inputs.image_tag || github.sha }}"
+          pullPolicy: Always
+        
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 80
+        
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+          hosts:
+            - host: service2.${{ secrets.DOMAIN_NAME || 'copilotx.local' }}
+              paths:
+                - path: /
+                  pathType: Prefix
+        
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        
+        autoscaling:
+          enabled: false
+        
+        env:
+          - name: SERVICE_NAME
+            value: "service2"
+          - name: COSMOSDB_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: app-secrets
+                key: cosmosdb-connection-string
+        EOF
+
+    - name: Create Service 3 Helm chart (with autoscaling)
+      run: |
+        cat > charts/service3-values.yaml << 'EOF'
+        replicaCount: 1
+        
+        image:
+          repository: ${{ secrets.ACR_LOGIN_SERVER }}/copilotx/service3
+          tag: "${{ github.event.inputs.image_tag || github.sha }}"
+          pullPolicy: Always
+        
+        service:
+          type: ClusterIP
+          port: 80
+          targetPort: 80
+        
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+          hosts:
+            - host: service3.${{ secrets.DOMAIN_NAME || 'copilotx.local' }}
+              paths:
+                - path: /
+                  pathType: Prefix
+        
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        
+        autoscaling:
+          enabled: true
+          minReplicas: 1
+          maxReplicas: 10
+          targetCPUUtilizationPercentage: 80
+          targetMemoryUtilizationPercentage: 80
+        
+        env:
+          - name: SERVICE_NAME
+            value: "service3"
+          - name: COSMOSDB_CONNECTION_STRING
+            valueFrom:
+              secretKeyRef:
+                name: app-secrets
+                key: cosmosdb-connection-string
+        EOF
+
+    - name: Create application secrets
+      env:
+        SQL_CONNECTION_STRING: ${{ secrets.SQL_CONNECTION_STRING }}
+        COSMOSDB_CONNECTION_STRING: ${{ secrets.COSMOSDB_CONNECTION_STRING }}
+      run: |
+        kubectl create secret generic app-secrets \
+          --namespace backend \
+          --from-literal=sql-connection-string="$SQL_CONNECTION_STRING" \
+          --from-literal=cosmosdb-connection-string="$COSMOSDB_CONNECTION_STRING" \
+          --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Create generic Helm chart template
+      run: |
+        helm create charts/copilotx-service
+        
+        # Update the generic chart to use our values
+        cat > charts/copilotx-service/values.yaml << 'EOF'
+        replicaCount: 1
+        
+        image:
+          repository: nginx
+          pullPolicy: IfNotPresent
+          tag: ""
+        
+        nameOverride: ""
+        fullnameOverride: ""
+        
+        service:
+          type: ClusterIP
+          port: 80
+        
+        ingress:
+          enabled: false
+          className: ""
+          annotations: {}
+          hosts:
+            - host: chart-example.local
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls: []
+        
+        resources: {}
+        
+        autoscaling:
+          enabled: false
+          minReplicas: 1
+          maxReplicas: 100
+          targetCPUUtilizationPercentage: 80
+        
+        env: []
+        EOF
+
+    - name: Deploy Service 1
+      run: |
+        helm upgrade --install service1 ./charts/copilotx-service \
+          --namespace backend \
+          --values charts/service1-values.yaml \
+          --wait --timeout=10m
+
+    - name: Deploy Service 2
+      run: |
+        helm upgrade --install service2 ./charts/copilotx-service \
+          --namespace backend \
+          --values charts/service2-values.yaml \
+          --wait --timeout=10m
+
+    - name: Deploy Service 3
+      run: |
+        helm upgrade --install service3 ./charts/copilotx-service \
+          --namespace backend \
+          --values charts/service3-values.yaml \
+          --wait --timeout=10m
+
+    - name: Verify deployments
+      run: |
+        echo "Checking deployment status..."
+        kubectl get deployments --namespace backend
+        kubectl get services --namespace backend
+        kubectl get ingress --namespace backend
+        kubectl get hpa --namespace backend
+
+    - name: Create deployment summary
+      run: |
+        echo "## 🚀 Application Deployment Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🎯 Deployed Services:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service 1**: Connects to SQL Database" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service 2**: Connects to Cosmos DB" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service 3**: Connects to Cosmos DB (with Pod Autoscaling)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🛠️ Infrastructure Components:" >> $GITHUB_STEP_SUMMARY
+        echo "- **NGINX Ingress Controller**: Frontend load balancing" >> $GITHUB_STEP_SUMMARY
+        echo "- **Prometheus & Grafana**: Monitoring and alerting" >> $GITHUB_STEP_SUMMARY
+        echo "- **Elasticsearch**: Centralized logging" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Access Information:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service 1**: http://service1.${{ secrets.DOMAIN_NAME || 'copilotx.local' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service 2**: http://service2.${{ secrets.DOMAIN_NAME || 'copilotx.local' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Service 3**: http://service3.${{ secrets.DOMAIN_NAME || 'copilotx.local' }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Grafana**: Access via port-forward or ingress configuration" >> $GITHUB_STEP_SUMMARY

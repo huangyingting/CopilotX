@@ -1,0 +1,48 @@
+# Example Terraform variables file
+# Copy this file to terraform.tfvars and fill in your values
+
+# Environment configuration
+environment = "dev"
+location = "East US"
+
+# Resource naming
+resource_group_name = "rg-copilotx"
+cluster_name = "aks-copilotx"
+acr_name = "acrcopilotx"
+key_vault_name = "kv-copilotx"
+
+# AKS configuration
+node_count = 3
+node_size = "Standard_DS2_v2"
+kubernetes_version = "1.28"
+enable_auto_scaling = true
+min_node_count = 1
+max_node_count = 10
+
+# Database configuration
+sql_server_name = "sql-copilotx"
+sql_database_name = "sqldb-copilotx"
+sql_admin_username = "sqladmin"
+sql_admin_password = "YourSecurePassword123!"
+
+# Cosmos DB configuration
+cosmosdb_account_name = "cosmos-copilotx"
+cosmosdb_database_name = "cosmosdb-copilotx"
+
+# Monitoring configuration
+log_analytics_workspace_name = "law-copilotx"
+application_insights_name = "ai-copilotx"
+
+# Network configuration
+vnet_name = "vnet-copilotx"
+vnet_address_space = ["10.0.0.0/16"]
+aks_subnet_address_prefixes = ["10.0.1.0/24"]
+app_gateway_subnet_address_prefixes = ["10.0.2.0/24"]
+
+# Tags
+tags = {
+  Environment = "dev"
+  Project     = "CopilotX"
+  ManagedBy   = "Terraform"
+  Owner       = "DevOps Team"
+}
