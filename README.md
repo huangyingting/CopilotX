@@ -128,5 +128,16 @@ flowchart LR
 ```
 [Task: Develop Azure Terraform deployment scripts and GitHub workflows to automate resource provisioning](https://github.com/huangyingting/CopilotX/issues/1)
 
+## Github Spark
+GitHub Spark is an AI-powered tool for creating and sharing micro apps (“sparks”), which can be tailored to your exact needs and preferences, and are directly usable from your desktop and mobile devices. Without needing to write or deploy any code.
+
+![Github-Spark](./images/Github-Spark.jpg)
+
+Spark Demo
+[Use Spark to Create Enterprise Support Website](https://github.com/spark/huangyingting/enterprise-support-p)
+
+Demo application
+[Enterprise Support](https://enterprise-support-p--huangyingting.github.app/)
+
 ## Azure SRE Agent
 Azure SRE Agent brings these principles to your Azure hosted applications by providing an AI-powered tool that helps sustain production cloud environments.
