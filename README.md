@@ -1,3 +1,18 @@
+# CopilotX
+CopilotX is a collection of demos showcasing the capabilities of Microsoft 365 Copilot, GitHub Copilot, and other AI-powered tools in various scenarios.
+| Demo                                          | Description                                                                                   |
+|------------------------------------------------|--------------------------------------------------------------------------------------------------------------|
+| Declarative Agent - Customer Insights Assistant | Build custom AI assistants in M365 Copilot for customer insights, with enhanced prompts and truth-grounding. |
+| Copilot Studio OpsBot                          | Use Confluence as a knowledge source for network operations Q&A.                                             |
+| Copilot Studio MCP                             | Connect to MCP servers to book meetings and tell jokes.                                                      |
+| Copilot Studio Agent Flows                     | Streamline ticket creation and automate responses with agent flows.                                          |
+| Copilot Studio Multi-Agent                     | Create multiple agents to collaboratively solve complex problems (e.g., claim approval).                     |
+| Azure MCP                                      | Start MCP server and generate a Mermaid diagram of deployed Azure resources.                                 |
+| Github Copilot Custom Chat Mode                | Interactive network operations planning and Azure Terraform script generation.                                |
+| Github Copilot Coding Agent                    | Generate Azure Terraform scripts and GitHub workflows for resource provisioning.                             |
+| Github Spark                                   | Create and share micro apps (“sparks”) for enterprise support and other use cases.                           |
+| Azure SRE Agent                                | AI-powered tool to sustain production cloud environments
+
 ## Declarative Agent - Customer Insights Assistant
 ### What is Declarative Agent?
 Declarative agents for Microsoft 365 Copilot are custom AI assistants you can build by simply defining their behavior, instructions, and knowledge—no coding required.
