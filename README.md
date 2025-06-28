@@ -49,6 +49,10 @@ Steps:
 ![Copilot-Studio-AutoIT](./images/Copilot-Studio-AutoIT.jpg)
 ![Copilot-Studio-AutoIT-Email](./images/Copilot-Studio-AutoIT-Email.jpg)
 
+## Copilot Studio Multi-Agent
+Copilot Studio Multi-Agent allows you to create multiple agents that can work together to solve complex problems. Here is a demo for approving a claim request.
+![Multi-Agent-Claim](./images/Multi-Agent-Claim.jpg)
+
 ## Azure MCP
 Start MCP server from mcp.json file.
 ```
