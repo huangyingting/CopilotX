@@ -8,6 +8,7 @@ CopilotX is a collection of demos showcasing the capabilities of Microsoft 365 C
 | Copilot Studio Agent Flows                     | Streamline ticket creation and automate responses with agent flows.                                          |
 | Copilot Studio Multi-Agent                     | Create multiple agents to collaboratively solve complex problems (e.g., claim approval).                     |
 | Azure MCP                                      | Start MCP server and generate a Mermaid diagram of deployed Azure resources.                                 |
+| Underwriting Reasoning                         | Using the reasoning model to evaluate an applicant's risk to determine eligibility and premium rates.                                           |
 | Github Copilot Custom Chat Mode                | Interactive network operations planning and Azure Terraform script generation.                                |
 | Github Copilot Coding Agent                    | Generate Azure Terraform scripts and GitHub workflows for resource provisioning.                             |
 | Github Spark                                   | Create and share micro apps (“sparks”) for enterprise support and other use cases.                           |
@@ -73,6 +74,10 @@ Start MCP server from mcp.json file.
 ```
 Please generate a Mermaid diagram that provides an overview of all my currently deployed resources.
 ```
+
+## Underwriting Reasoning
+Using the reasoning model to evaluate an applicant's risk to determine eligibility and premium rates.
+[Underwriting in Health Insurance](./reasoning/underwriting_in_health_insurance.ipynb)
 
 ## Github Copilot Custom Chat Mode
 
