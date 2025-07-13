@@ -1,0 +1,10 @@
+[project]
+name = "copilotx"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel>=6.29.5",
+    "ipywidgets>=8.1.7",
+    "openai>=1.95.1",
+    "python-dotenv>=1.1.1",
+]
