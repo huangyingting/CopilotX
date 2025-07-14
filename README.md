@@ -96,6 +96,21 @@ Based on the azure-arch.png image, please generate terraform deployment script
 ```
 ![Github-Copilot-Terraform](./images/Github-Copilot-Terraform.jpg)
 
+### Powershell Script Generation
+You can use github copilot to generate Powershell scripts. Here’s an example of how to do this:
+```
+PowerShell script to onboard new users from a CSV file named 'new_hires.csv'.
+The script must perform the following actions for each user:
+1. Import the CSV which contains columns: FirstName, LastName, Department, Title.
+2. Generate a secure, random initial password.
+3. Create an Active Directory user in the Organizational Unit that matches the user's Department.
+4. Construct the UserPrincipalName using the format 'firstname.lastname@yourcompany.com'.
+5. Assign a Microsoft 365 E5 license to the new user account.
+6. Add the user to the 'All-Staff' Microsoft Teams group.
+7. Include robust error handling with try/catch blocks for each major operation.
+8. Log all actions, including successes and failures, to a transcript file.
+```
+
 ## Github Copilot Coding Agent
 Use Github Copilot to generate Azure Terraform scripts and GitHub workflows for automating resource provisioning based on the provided architecture diagram.
 
