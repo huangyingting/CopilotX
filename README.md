@@ -12,6 +12,7 @@ CopilotX is a collection of demos showcasing the capabilities of Microsoft 365 C
 | Github Copilot Custom Chat Mode                | Interactive network operations planning and Azure Terraform script generation.                                |
 | Github Copilot Coding Agent                    | Generate Azure Terraform scripts and GitHub workflows for resource provisioning.                             |
 | Github Spark                                   | Create and share micro apps (“sparks”) for enterprise support and other use cases.                           |
+| APIM MCP                                       | Expose existing REST APIs as MCP servers.                                                               |
 | Azure SRE Agent                                | AI-powered tool to sustain production cloud environments
 
 ## Declarative Agent - Customer Insights Assistant
@@ -109,6 +110,13 @@ The script must perform the following actions for each user:
 6. Add the user to the 'All-Staff' Microsoft Teams group.
 7. Include robust error handling with try/catch blocks for each major operation.
 8. Log all actions, including successes and failures, to a transcript file.
+```
+
+## Expose Rest API as a MCP Server
+You can expose a REST API as a MCP server by creating a classic basic above APIM instance in Azure. 
+```
+find pet with id 1
+find all pets
 ```
 
 ## Github Copilot Coding Agent

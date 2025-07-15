@@ -1,4 +1,12 @@
 {
+    "inputs": [
+        {
+            "type": "promptString",
+            "id": "apim-key",
+            "description": "APIM Subscription Key",
+            "password": true
+        }
+    ],
     "servers": {
         "azure-mcp": {
             "type": "stdio",
@@ -9,6 +17,12 @@
                 "server",
                 "start"
             ]
+        },
+        "apim-petstore": {
+            "url": "https://apimicsu.azure-api.net/petstore-mcp/sse",
+            "headers": {
+                "Ocp-Apim-Subscription-Key": "${input:apim-key}"
+            },
         }
     }
 }
