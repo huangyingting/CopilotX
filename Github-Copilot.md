@@ -1,0 +1,466 @@
+# Github Copilot Workshop
+
+## Scenarios
+
+### Scenarios
+- Regular expressions
+- Boundary condition validation
+- Writing code with hard-to-remember keywords, e.g., HTML/CSS
+- Writing/complex algorithms you are not familiar with
+- Using/learning unfamiliar programming languages
+- Completing object fields by common sense
+- Understanding complex code and writing documentation comments
+- Generating unit tests
+- Letting AI directly modify code in Agent mode
+
+### Key Capabilities Highlighted
+- Get code suggestions as you type
+- Make large-scale changes across multiple files
+- Ask questions about coding issues
+- Refactor and improve your code structure
+- Fix bugs and debug your code
+- Set up foundational code for new projects or files
+- Configure and generate tests
+- Generate documentation for your code
+
+
+## Installation and Basic Configuration
+### Github Copilot Policy
+- [Github Copilot Features](https://github.com/settings/copilot/features)
+  ![](./github-copilot/Github-Copilot-Policy.png)
+- Features:
+  - Editor preview features
+  - Copilot in GitHub.com
+  - Copilot in the CLI
+  - Copilot Extensions
+  - Copilot in GitHub Desktop
+  - Copilot Chat in the IDE
+  - Copilot Chat in GitHub Mobile
+  - Copilot can search the web
+  - Anthropic Claude 3.5 Sonnet in Copilot
+  - Anthropic Claude 3.7 Sonnet in Copilot
+  - Anthropic Claude Sonnet 4 in Copilot
+  - Anthropic Claude Opus 4 in Copilot
+  - Google Gemini 2.0 Flash in Copilot
+  - Google Gemini 2.5 Pro in Copilot Preview
+  - OpenAI o3 in Copilot Preview
+  - OpenAI o3-mini in Copilot
+  - OpenAI o4-mini in Copilot Preview
+  - Dashboard entry point
+  - Copilot coding agent Preview
+  - MCP servers in Copilot
+
+### Github Copilot IDE Configuration
+- Copilot in your preferred coding environment, refer to [Installing the GitHub Copilot extension in your environment](https://docs.github.com/en/copilot/how-tos/set-up/install-copilot-extension), e.g., Visual Studio Code, JetBrains, Neovim, etc.
+- VSCode Installation
+  - Install the GitHub Copilot extension and any recommended plugins
+  - Sign in with your GitHub account, verify your access, and review or adjust key settings as needed
+- VSCode Configuration
+  - Open the Command Palette with ctrl + shift + p.
+  - Type and select Preferences: Open User Settings (JSON) to open your settings.json file.
+  - Add or modify GitHub Copilot settings, such as:
+    ```JSON
+    {
+      "github.copilot.advanced": {
+        "authProvider": "github-enterprise"
+      },
+      "github.copilot.chat.commitMessageGeneration.instructions": [
+        {
+          "text": "Follow the conventional commits format strictly for commit messages. Use the structure below:\n\n```\n<type>[optional scope]: <gitmoji> <description>\n\n[optional body]\n```\n\nGuidelines:\n\n1. **Type and Scope**: Choose an appropriate type (e.g., `feat`, `fix`) and optional scope to describe the affected module or feature.\n\n2. **Gitmoji**: Include a relevant `gitmoji` that best represents the nature of the change.\n\n3. **Description**: Write a concise, informative description in the header; use backticks if referencing code or specific terms.\n\n4. **Body**: For additional details, use a well-structured body section:\n   - Use bullet points (`*`) for clarity.\n   - Clearly describe the motivation, context, or technical details behind the change, if applicable.\n\nCommit messages should be clear, informative, and professional, aiding readability and project tracking."
+        }
+      ]
+    }
+    ```
+
+## Github Copilot Data Flow
+
+```mermaid
+graph TD
+    A[Code Editor<br>Prompt] -->|1| B[Proxy Server / Service]
+    B -->|2| C[Models<br>Azure + OpenAI]
+    C -->|3| B
+    B -->|4| A
+    B -->|5| D[Garbage Collection<br>All data deleted from memory]
+```
+
+### Common Issues with Enterprise Firewalls & Proxy Servers
+
+#### Network Access & Restrictions
+- **Blocked Domains**: Copilot needs access to specific GitHub and Microsoft endpoints; firewalls often block these by default.
+- **TLS/SSL Inspection**: Deep packet inspection can interfere with encrypted traffic, causing failed Copilot connections.
+- **WebSocket Limitations**: Copilot relies on persistent connections via WebSockets, which may be restricted or dropped by proxies.
+
+#### Proxy Configuration
+- **No Proxy Authentication Support**: Some enterprise proxies require authentication methods that Copilot doesn’t support natively.
+- **Incorrect Proxy Settings**: Misconfigured `HTTPS_PROXY` or `ALL_PROXY` environment variables in development environments (like VS Code) can prevent Copilot from connecting.
+- **PAC File Issues**: Proxy auto-config (PAC) files may misroute Copilot traffic or apply incorrect rules.
+
+#### Security Tools & Inspection
+- **Intrusion Detection Systems (IDS/IPS)**: These may flag Copilot traffic as suspicious or unfamiliar, blocking operation.
+- **Rate Limiting**: Enterprise firewalls can throttle requests to external domains, impacting Copilot’s responsiveness.
+- **Certificate Pinning Conflicts**: Security tools performing SSL interception may replace certificates, causing Copilot to reject connections.
+
+#### Compatibility & Access Controls
+- **VPN Constraints**: Routing traffic through certain VPNs may isolate Copilot from required resources.
+- **Zero Trust Policies**: Stringent access policies may block extensions or require manual whitelisting.
+- **Firewall ACLs**: Lack of explicit access control list (ACL) rules can prevent Copilot from reaching required endpoints.
+
+#### References
+- [Allowlist Reference](https://docs.github.com/en/copilot/reference/allowlist-reference)
+- [Configuring network settings for GitHub Copilot
+](https://docs.github.com/es/copilot/how-tos/configure-personal-settings/configure-network-settings)
+
+### Inspecting Github Copilot Traffic
+- Install [mitmproxy](https://docs.mitmproxy.org/stable/overview-installation/)
+- Configure your IDE to use mitmproxy as the HTTP proxy:
+    - VSCode: `File` → `Preferences` → `Settings` → Search for `proxy` → Set `HTTP Proxy` to `http://localhost:8080`
+      ![](./github-copilot/VSCode-Http-Proxy.png)
+    - JetBrains: `File` → `Settings` → `Appearance & Behavior` → `System Settings` → `HTTP Proxy` → Set to `Manual proxy configuration`, enter `localhost` and port `8080`
+- Mitmproxy can decrypt encrypted traffic on the fly. To inspect GitHub Copilot traffic, follow these steps:
+- On Linux, run the following commands:
+  ```bash
+  mitmdump --listen-host 0.0.0.0 --listen-port 8080 --mode regular --flow-detail 4
+  openssl x509 -in ~/.mitmproxy/mitmproxy-ca-cert.pem -inform PEM -out ~/.mitmproxy/mitmproxy-ca-cert.crt
+  sudo mkdir /usr/share/ca-certificates/extra
+  sudo cp ~/.mitmproxy/mitmproxy-ca-cert.crt /usr/share/ca-certificates/extra/mitmproxy-ca-cert.crt
+  sudo dpkg-reconfigure ca-certificates
+  sudo update-ca-certificates
+  ```
+- On Windows, install the mitmproxy CA certificate with:
+  ```bash
+  certutil -addstore root mitmproxy-ca-cert.cer
+  ```
+- A sample GitHub Copilot network traffic captured by mitmproxy:
+  [Github-Copilot-Trace.log](./github-copilot/Github-Copilot-Trace.log)
+
+## Fine-Tuned Models + Custom Instructions
+- Custom completion model
+  ```mermaid
+  graph TD
+      subgraph "Deep Customization"
+          A3[Users] --> B3[Copilot in IDEs]
+          B3 -.-> F3[GitHub Enterprise Server]
+          B3 -.-> C3[GitHub Enterprise Cloud]
+          C3 --> D3[Base Model]
+          C3 --> G3[Custom Model v1]
+          C3 --> H3[Custom Model v2]
+          C3 --> I3[(repos)]
+          D3 -.-> G3
+          G3 -.-> H3
+          I3 --> G3
+          I3 --> H3
+      end  
+
+      
+      subgraph "Lightweight Customization"
+          A2[Users] --> B2[Copilot in IDEs]
+          B2 --> E2[custom instructions]
+          B2 -.-> C2[GitHub Enterprise Cloud]
+          C2 --> D2[Base Model]
+          E2 --> D2
+      end
+      
+      subgraph "Default Deployment"
+          A1[Users] --> B1[Copilot in IDEs]
+          B1 -.-> C1[GitHub Enterprise Cloud]
+          C1 --> D1[Base Model]
+      end
+      
+      classDef cloudStyle fill:#e1f5fe,stroke:#0277bd,stroke-width:2px
+      classDef modelStyle fill:#e8eaf6,stroke:#3f51b5,stroke-width:2px
+      classDef customModelStyle fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+      classDef userStyle fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px
+      classDef repoStyle fill:#ffebee,stroke:#f44336,stroke-width:2px
+      
+      class C1,C2,C3,F3 cloudStyle
+      class D1,D2,D3 modelStyle
+      class G3,H3 customModelStyle
+      class A1,A2,A3 userStyle
+      class I3 repoStyle
+  ```
+- Fine-tuning models
+  - Copilot supports fine-tuning models with your own data, allowing you to create custom models tailored to your specific needs.
+  - Fine-tuning is available for both GitHub Enterprise Cloud and GitHub Enterprise Server.
+  - You can use the [GitHub Copilot Fine-Tuning Guide](https://docs.github.com/en/copilot/how-tos/fine-tune-copilot-models) to learn how to fine-tune models with your own data.
+  - `.vscode/settings.json` configuration
+  ```JSON
+  {
+    "github.copilot.advanced": {
+        "debug.overrideEngine": "copilot-prod-finetune-centralus.gh-msft-innersource-r4a9r17564c7"
+    }
+  }
+  ```
+
+## Github Copilot Features
+
+### Code Completion and Suggestions
+
+#### Example 1: Creating a Function from a Comment (Python)
+This is a classic demo. Copilot excels at understanding your intent from a simple comment and generating the entire function for you.
+1. Open a new Python file (e.g., `app.py`).
+2. **Type this comment** and press `Enter`:
+    ```python
+    # function to fetch data from a URL and return it as JSON
+    ```
+3. Wait a moment. **Copilot will suggest** a complete function implementation. It will often infer the need for a library like `requests`.
+
+#### Example 2: Filling in Repetitive Patterns (Python)
+Copilot is excellent at identifying patterns and saving you from typing boilerplate or repetitive code, like in a class constructor.
+1. Open Python file `models.py`.
+2. Inside the `__init__` method, begin the assignments. **Type only the first line**:
+    ```python
+    import datetime
+
+    class User:
+      def __init__(self, id: int, username: str, email: str, last_login: datetime.date):
+          self.id = id
+    ```
+3. **Copilot will immediately suggest** the remaining assignments because it recognizes the standard `__init__` pattern.
+
+    *(The grayed-out text is the Copilot suggestion)*
+
+    ```python
+      def __init__(self, id: int, username: str, email: str, last_login: datetime.date):
+          self.id = id
+          self.username = username
+          self.email = email
+          self.last_login = last_login
+    ```
+
+    You can press `Tab` to accept all the suggested lines at once.
+
+#### Shortcut commands:
+- `tab` accept all
+- `ctrl + →` accept next word (partial suggestion)
+- `alt + ]` next suggestion
+- `alt + [` previous suggestion
+
+
+
+### Next Edit Suggestions(NES)
+With NES you make a change and then Copilot predicts the changes that follow and presents them to you in sequence. [Copilot Next Edit Suggestions](https://githubnext.com/projects/copilot-next-edit-suggestions/)
+
+1. Open Python file `models.py`.
+```Python
+# Complete a Point class, then modify to Point3D
+class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+    def get_distance(self, other):
+        return ((self.x - other.x) ** 2 + (self.y - other.y) ** 2) ** 0.5
+```
+2. Keep typing the next line, Copilot will suggest the next edit.
+
+### Code Refactoring
+- Highlight the code you want to refactor, then use the `Refactor` command. Copilot will suggest improvements or alternative implementations.
+![Github-Copilot-Refactor](./github-copilot/Github-Copilot-Refactor.png)
+- Modify provides inline chat UI for refactoring. You can ask Copilot to refactor code, change variable names, or improve code structure.
+![Github-Copilot-Code-Modify](./github-copilot/Github-Copilot-Code-Modify.png)
+- Code review provides suggestions for improving code quality, such as simplifying logic, improving readability, or optimizing performance. You can also use Copilot to review your code and suggest improvements.
+![Github-Copilot-Code-Review](./github-copilot/Github-Copilot-Code-Review.png)
+
+
+## Copilot Chat Features
+
+### Configuration
+![Github Copilot Configuration](./github-copilot/Github-Copilot-Configuration.png)
+
+- Edit Settings...
+  
+  ![](./github-copilot/Github-Copilot-Settings.png)
+
+- Show Diagnostics...
+- Open Logs...
+
+### Copilot Chat Basic Features
+- Shortcuts
+
+  |Shortcut|Description|
+  |-|-|
+  |Ctrl+Alt+I|Open **Chat View** and start chatting with Copilot in natural language.|
+  |Ctrl+Shift+Alt+L|Open **Quick Chat** and ask Copilot a quick question.|
+  |Ctrl + I|Start **Inline Chat**, send chat requests directly from the editor. Use natural language or commands with `/`.|
+
+- Real-time Conversational Code Collaboration
+  - Defaults to the currently open file
+  - Select a specific file
+  - Select specific code lines
+
+- Prompt Examples
+  - Ask about coding and technical concepts ("What is a linked list?", "Top 10 popular web frameworks")
+  - Brainstorm and discuss how best to solve coding problems ("How to add authentication to my project?")
+  - Explain other people's code ("@workspace /explain", "Explain this code")
+  - Suggest code fixes ("@workspace /fix", "This method gives FileNotFoundException, please fix")
+  - Generate unit test cases or code documentation ("@workspace /tests", "@workspace /doc")
+  - Ask about VS Code settings ("@vscode how to change language?")
+
+- Add Context to Chat
+  - `ctrl + /` shortcut to add various types of context.
+  - Add or drag and drop
+
+- Inline Chat
+  > VSCode: `ctrl + I`, JetBrains: `ctrl + shift + G`
+
+- Generate code
+
+  ```python
+  Generate a Python web server with a colorful dynamic page. The service listens on port 80.
+  ```
+- Refactor code (including modifications/add features, etc.)
+  ```markdown
+  Change the listening port to be specified by an environment variable.
+  ```
+- Not only supports the editor, but also the **command line**. For example
+
+  ```txt
+  List the 5 largest files
+  ```
+
+### Copilot Chat Quick Commands
+
+- Quick commands
+  - `@`
+  - `#`
+  - `/`
+- Built-in @ extensions
+
+  |Built-in Participant|Description|
+  |-|-|
+  |`@workspace`|Understands code in the workspace. Use it to navigate your codebase, find related classes, files, etc. Can even discover issues in the repo. For example, the algorithm in the calculator repo is wrong. Builds a local index:  - Below 750 files: advanced index - 750~2500: `> `**`Build local workspace index`** - Above 2500: basic index only   **Prompt examples:** -   `@workspace How are notifications implemented?` -   `@workspace Add form validation like the newsletter page`|
+  |`@vscode`|Understands VS Code features, settings, and API.  **Prompt examples:** -   `@vscode How to change language?`|
+  |`@terminal`|Understands the integrated terminal and its content.  **Prompt examples:** -   `@terminal How to undo last commit` -   `@terminal #terminalLastCommand fix this`|
+  |`@github`|Understands GitHub repo issues, PRs, etc. Can also use Bing API for web search. More info: [Using GitHub skills](https://docs.github.com/en/copilot/using-github-copilot/asking-github-copilot-questions-in-your-ide#using-github-skills-for-copilot)  **Prompt examples:** -   `@github What are all my open PRs assigned to me?` -   `@github #web What is the latest VS Code version?`|
+
+  You can install other plugins from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/search?term=tag:chat-participant&target=VSCode&category=All categories&sortBy=Relevance) or [GitHub Marketplace](https://github.com/marketplace). Or, at the end of @, use InstallChatExtensions to jump to the plugin marketplace.
+
+
+- Built-in slash commands
+  *Slash commands* provide shortcuts for specific instructions, so you don't have to write complex prompts. To use a slash command, type `/` then the command. Plugins can contribute their own slash commands. Some common built-in slash commands:
+
+  - `/clear`: Start a new chat session
+  - `/help`: Get help using GitHub Copilot
+  - `@workspace /explain`: Explain the selected code `/explain`
+  - `@workspace /fix`: Suggest fixes for issues in the selected code `/fix`
+  - `@workspace /new`: Scaffold code for a new workspace or file `/new`
+
+#### Chat History and Common Buttons
+
+- Chat window history
+
+  ![Chat History](./github-copilot/Github-Copilot-Chat-History.png)
+
+- Code block button
+
+  ![Code Block Button](./github-copilot/Github-Copilot-Code-Block.png)
+
+- Copilot status
+
+  ![Copilot Status](./github-copilot/Github-Copilot-Status.png)
+
+- Right-click context menu
+
+  ![Right Click](./github-copilot/Github-Copilot-Right-Click.png)
+
+
+### Multimodal Input
+- Visual
+  - `Here is a screenshot of a website I want to build. Please generate the HTML and CSS code to create this layout. Use Tailwind CSS for styling. Make sure the navigation links are in a <nav> tag and the main content is in a <main> tag.`
+  - `Please generate the corresponding Terraform script based on the architecture diagram in the image azure-arch.png`
+
+- Voice
+![Github Copilot Voice](./github-copilot/Github-Copilot-Voice.png)
+
+
+### Code Fix
+- When a 〰️ error appears, you can use Copilot to fix the problem directly
+  ![](./github-copilot/Github-Copilot-Code-Fix.png)
+- You can highlight code, press `Ctrl+.` to fix code directly
+  ![](./github-copilot/Github-Copilot-Code-Fix-2.png)
+
+### Other Features
+
+- Commits message generation
+- Commit history analysis
+- Markdown image alt text analysis
+
+
+## Advanced Features
+
+### Copilot Extensions
+Copilot Extensions are integrations that expand the functionality of Copilot Chat, allowing developers to bring external tools, services, and custom behaviors into the Chat experience.
+
+[About Copilot Extensions](https://docs.github.com/en/copilot/concepts/extensions/about-extensions)
+
+### Copilot Edit
+- Supports editing up to 10 files at once, limited to 7 edit requests every 10 minutes.
+- Modify content directly via natural language dialogue. You can accept changes for specific files individually.
+  
+
+### Copilot Agent Mode
+- Even when using Agent mode, if you know which files need to be modified, it's recommended to manually add them to the working set.
+- When choosing between edit mode and agent mode, refer to:
+  - Edit scope: If your request only involves code editing and you know the exact range and working set, use edit mode.
+  - Preview feature: Agent mode is still in preview and may not be suitable for all scenarios.
+  - Duration: Agent mode involves multiple steps, so it may take longer to get a response (e.g., determining context/files to edit, action plan, etc.).
+  - Non-determinism: Agent mode evaluates the result of generated edits and may iterate multiple times, making it less deterministic than edit mode.
+  - Request quota: In agent mode, a single prompt may result in multiple backend requests depending on task complexity.
+
+### MCP in Agent Mode
+When combined with Model Context Protocol (MCP) servers, agent mode becomes significantly more powerful, giving Copilot access to external resources without switching context. This enables Copilot to complete agentic "loops," where it can dynamically adapt its approach by autonomously finding relevant information, analyzing feedback, and making informed decisions.
+
+### Customize AI Responses
+[Community-contributed instructions, prompts, and configurations to help you make the most of GitHub Copilot.](https://github.com/github/awesome-copilot/)
+
+#### Custom Instructions
+Define common guidelines or rules for tasks like generating code, performing code reviews, or generating commit messages. 
+
+Example scenarios:
+- Specify coding practices, preferred technologies, or project requirements, so generated code follows your standards.
+- Set rules for code reviews, such as checking for security vulnerabilities or performance issues.
+- Provide instructions for generating commit messages or pull request titles and descriptions.
+
+Custom instructions can be applied at different levels
+- Personal/User Profile: User instruction files are stored in the [current profile folder](https://code.visualstudio.com/docs/configure/profiles), [Adding personal custom instructions for GitHub Copilot](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-personal-instructions)
+- Repository/Workspace: `.github/copilot-instructions.md`, [Adding repository custom instructions for GitHub Copilot](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-repository-instructions)
+  - `.github/copilot-instructions.md` file
+  - `.github/instructions/*.instructions.md` files	
+- Organizations: Your organizations -> Settings -> Copilot -> Custom instructions, [Adding organization custom instructions for GitHub Copilot](https://docs.github.com/en/copilot/how-tos/configure-custom-instructions/add-organization-instructions)
+
+Custom instruction example files:
+- [Kubernetes Deployment Best Practices](./.github/instructions/kubernetes-deployment-best-practices.instructions.md)
+
+  ```txt
+  Create a Kubernetes deployment YAML file that provisions NGINX to function as a reverse proxy.
+  ```
+
+#### Prompt Files
+Define reusable prompts for common tasks like generating code or performing a code review. 
+
+In the `.github/prompts` folder, `.prompt.md` files can be quickly reused in Chat via `ctrl + /`. 
+
+Example scenarios:
+- Create reusable prompts for common coding tasks, such as scaffolding a new component, API route, or generating tests.
+- Define prompts for performing code reviews, such as checking for code quality, security vulnerabilities, or performance issues.
+- Create step-by-step guides for complex processes or project-specific patterns.
+- Define prompts for generating implementation plans, architectural designs, or migration strategies.
+
+Example prompt file:
+- [my-issues.prompt.md](./.github/prompts/my-issues.prompt.md)
+- Copilot Chat -> Agent -> `ctrl + /` -> `my-issues` -> `List my issues in the current repository`
+
+#### Custom Chat Modes
+Define how chat operates, which tools it can use, and how it interacts with the codebase.
+
+Example scenarios:
+- Create a chat mode for planning, where the AI has read-only access to the codebase and can only generate implementation plans.
+- Define a research chat mode, where the AI can reach out to external resources to explore new technologies or gather information.
+- Create a front-end developer chat mode, where the AI can only generate and modify code related to front-end development.
+
+Example custom chat mode files:
+- [planning.chatmode.md](./.github/chatmodes/planning.chatmode.md)
+- [terraform.chatmode.md](./.github/chatmodes/terraform.chatmode.md)
+- `Inventory all existing Azure virtual machines, then formulate a strategic plan to optimize their cost efficiency.`
+  ![Github Copilot Custom Chat](./github-copilot/Github-Copilot-Custom-Chat.png)
+

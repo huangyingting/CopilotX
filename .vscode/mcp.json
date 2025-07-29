@@ -19,10 +19,14 @@
             ]
         },
         "apim-petstore": {
-            "url": "https://apimicsu.azure-api.net/petstore-mcp/sse",
+            "url": "https://icsuapim.azure-api.net/petstore-mcp/sse",
             "headers": {
                 "Ocp-Apim-Subscription-Key": "${input:apim-key}"
             },
+        },
+        "github": {
+            "type": "http",
+            "url": "https://api.githubcopilot.com/mcp/"
         }
     }
 }
