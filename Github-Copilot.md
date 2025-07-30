@@ -1,4 +1,4 @@
-# Github Copilot Workshop
+# Github Copilot
 
 ## Scenarios
 
@@ -542,3 +542,85 @@ The script must perform the following actions for each user:
 7. Include robust error handling with try/catch blocks for each major operation.
 8. Log all actions, including successes and failures, to a transcript file.
 ```
+
+### Work with Azure MCP
+Start MCP server from mcp.json file.
+```
+Please generate a Mermaid diagram that provides an overview of all my currently deployed resources.
+```
+
+### Use Coding Agent to Generate Azure Terraform Scripts
+Use Github Copilot to generate Azure Terraform scripts and GitHub workflows for automating resource provisioning based on the provided architecture diagram.
+
+```
+Based on below mermaid diagram, develop Azure Terraform deployment scripts and GitHub workflows to automate resource provisioning.
+```
+
+```mermaid
+flowchart LR
+    subgraph AKS["Azure Kubernetes Service (AKS)"]
+        subgraph FrontEnd["Front end"]
+            Ingress["Ingress (Nginx)"]
+        end
+        subgraph BackEnd["Back-end services"]
+            BE1["Service 1"]
+            BE2["Service 2"]
+            BE3["Service 3 (Pod autoscaling)"]
+        end
+        subgraph Utility["Utility services"]
+            Elasticsearch["Elasticsearch"]
+            Prometheus["Prometheus"]
+        end
+    end
+
+    ClientApps["Client Apps"]
+    LoadBalancer["Azure Load Balancer"]
+    GithubWorkflows["Github Workflows (CI/CD)"]
+    Helm["Helm"]
+    ContainerRegistry["Container Registry"]
+    DevOps["Dev/Ops"]
+    AAD["Azure Active Directory"]
+    Monitor["Monitor"]
+    KeyVault["Azure Key Vault"]
+    SQL["SQL Database"]
+    CosmosDB["Cosmos DB"]
+
+    ClientApps --> LoadBalancer
+    LoadBalancer --> Ingress
+    Ingress --> BE1
+    Ingress --> BE2
+    Ingress --> BE3
+    BE1 --> SQL
+    BE2 --> CosmosDB
+    BE3 -.-> CosmosDB
+    Utility --> Elasticsearch
+    Utility --> Prometheus
+
+    GithubWorkflows -- docker push/pull --> ContainerRegistry
+    GithubWorkflows -- helm upgrade --> Helm
+    Helm --> AKS
+    DevOps -->|RBAC| AAD
+    AKS -.->|Virtual network| Monitor
+    AKS -.->|Virtual network| KeyVault
+```
+[Task: Develop Azure Terraform deployment scripts and GitHub workflows to automate resource provisioning](https://github.com/huangyingting/CopilotX/issues/1)
+
+### Create Enterprise Support Portal with Github Spark
+GitHub Spark is an AI-powered tool for creating and sharing micro apps (“sparks”), which can be tailored to your exact needs and preferences, and are directly usable from your desktop and mobile devices. Without needing to write or deploy any code.
+
+![Github-Spark](./github-copilot/Github-Spark.jpg)
+
+Spark Demo
+[Use Spark to Create Enterprise Support Website](https://github.com/spark/huangyingting/enterprise-support-p)
+
+Demo application
+[Enterprise Support](https://enterprise-support-p--huangyingting.github.app/)
+
+### Migrate AWS Lambda to Azure Functions
+You can use the GitHub Copilot for Azure extension to migrate AWS Lambda functions to Azure Functions. This extension provides a custom chat mode that allows you to interact with Copilot in a way that is tailored for Azure development.
+- In Visual Studio Code, select the `Extensions` icon.
+- In the Extensions Marketplace, search for `GitHub Copilot for Azure`. When the - GitHub Copilot for Azure extension appears, select `Install`.
+If you're prompted, sign in to your Azure account.
+- Open the Command Palette (Ctrl+Shift+P) and type `@azure: Add Custom Chat Mode `
+- Once the chat mode is added, you can use it to migrate AWS Lambda functions to Azure Functions. A sample project can be found at [huangyingting/serverless-face-blur-service)](https://github.com/huangyingting/serverless-face-blur-service).
+  ![Github Copilot Lambda Migration](./github-copilot/Github-Copilot-Lambda-Migration.png)
