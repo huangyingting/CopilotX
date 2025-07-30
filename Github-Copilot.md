@@ -328,11 +328,14 @@ class Point:
   ```
 
 ### Copilot Chat Quick Commands
+[GitHub Copilot in VS Code Cheat Sheet](https://code.visualstudio.com/docs/copilot/reference/copilot-vscode-features)
 
 - Quick commands
-  - `@`
-  - `#`
-  - `/`
+  - `@` - Reference chat participants to handle domain-specific requests.
+  - `#` - Reference common tools or chat variables to provide context within in your prompt.
+  - `/` - Use slash commands for common tasks or invoke a reusable chat prompt.
+
+
 - Built-in @ extensions
 
   |Built-in Participant|Description|
@@ -353,6 +356,16 @@ class Point:
   - `@workspace /explain`: Explain the selected code `/explain`
   - `@workspace /fix`: Suggest fixes for issues in the selected code `/fix`
   - `@workspace /new`: Scaffold code for a new workspace or file `/new`
+
+- Common tools or chat variables
+Use chat variables in your chat prompt to reference context that is relevant to your question or to reference specific tools. Reference chat variables or tools in your chat prompt by using the #-mention syntax.
+
+  |Chat Variable|Description|
+  |-|-|
+  |`#file`|Reference the current file in your chat prompt. For example, `#file` will reference the file you are currently working on.|
+  |`#selection`|Reference the selected code in your chat prompt. For example, `#selection` will reference the code you have selected in your editor.|
+  |`#githubRepo`|Tool to perform a code search in a GitHub repo. For example, "what is a global snippet #githubRepo microsoft/vscode.|
+  |`#fetch`|Fetch the content from a web page - provide the URL.|
 
 #### Chat History and Common Buttons
 - Chat window history
@@ -385,6 +398,7 @@ class Point:
   ![](./github-copilot/Github-Copilot-Code-Fix.png)
 - You can highlight code, press `Ctrl+.` to fix code directly
   ![](./github-copilot/Github-Copilot-Code-Fix-2.png)
+
 
 ### Other Features
 - Commits message generation
@@ -521,12 +535,18 @@ Could you please review my existing Azure network resources and share recommenda
 ```
 ![Github Copilot Network Planning](./github-copilot/Github-Copilot-Network-Planning.jpg)
 
-### Azure Terraform Script Generation
-You can use the custom chat mode to generate Terraform scripts for Azure resources. Here’s an example of how to do this:
+### Architecture Design to Azure Terraform Script
+You can use the custom chat mode to generate Terraform scripts from architecture design diagram. Here’s an example of how to do this:
 ```
 Based on the architecture outlined in azure-arch.png, please generate a Terraform deployment script that provisions the corresponding resources.
 ```
 ![Github Copilot Terraform](./github-copilot/Github-Copilot-Terraform.jpg)
+
+### Azure Resources to Mermaid Diagram
+You can also generate a Mermaid diagram from Azure resources. Here’s an example of how to do this:
+```
+Based on the Azure resources outlined in my current subscription, please generate a Mermaid diagram that visualizes the resource relationships.
+```
 
 ### Powershell Script Generation
 You can use github copilot to generate Powershell scripts. Here’s an example of how to do this:
@@ -623,4 +643,5 @@ You can use the GitHub Copilot for Azure extension to migrate AWS Lambda functio
 If you're prompted, sign in to your Azure account.
 - Open the Command Palette (Ctrl+Shift+P) and type `@azure: Add Custom Chat Mode `
 - Once the chat mode is added, you can use it to migrate AWS Lambda functions to Azure Functions. A sample project can be found at [huangyingting/serverless-face-blur-service)](https://github.com/huangyingting/serverless-face-blur-service).
+
   ![Github Copilot Lambda Migration](./github-copilot/Github-Copilot-Lambda-Migration.png)
