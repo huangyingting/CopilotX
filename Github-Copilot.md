@@ -542,10 +542,16 @@ Based on the architecture outlined in azure-arch.png, please generate a Terrafor
 ```
 ![Github Copilot Terraform](./github-copilot/Github-Copilot-Terraform.jpg)
 
-### Azure Resources to Mermaid Diagram
-You can also generate a Mermaid diagram from Azure resources. Here’s an example of how to do this:
+### Work with Azure MCP
+Start azure-mcp server from mcp.json file.
 ```
-Based on the Azure resources outlined in my current subscription, please generate a Mermaid diagram that visualizes the resource relationships.
+Please generate a Mermaid diagram that provides an overview of all my currently deployed resources.
+```
+
+### Work with M365 Graph API
+Start microsoft-graph mcp server from mcp.json file.
+```
+Please list out my meetings for tomorrow
 ```
 
 ### Powershell Script Generation
@@ -563,11 +569,9 @@ The script must perform the following actions for each user:
 8. Log all actions, including successes and failures, to a transcript file.
 ```
 
-### Work with Azure MCP
-Start MCP server from mcp.json file.
-```
-Please generate a Mermaid diagram that provides an overview of all my currently deployed resources.
-```
+
+
+### 
 
 ### Use Coding Agent to Generate Azure Terraform Scripts
 Use Github Copilot to generate Azure Terraform scripts and GitHub workflows for automating resource provisioning based on the provided architecture diagram.
