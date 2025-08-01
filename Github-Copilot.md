@@ -569,10 +569,6 @@ The script must perform the following actions for each user:
 8. Log all actions, including successes and failures, to a transcript file.
 ```
 
-
-
-### 
-
 ### Use Coding Agent to Generate Azure Terraform Scripts
 Use Github Copilot to generate Azure Terraform scripts and GitHub workflows for automating resource provisioning based on the provided architecture diagram.
 
@@ -649,3 +645,11 @@ If you're prompted, sign in to your Azure account.
 - Once the chat mode is added, you can use it to migrate AWS Lambda functions to Azure Functions. A sample project can be found at [huangyingting/serverless-face-blur-service)](https://github.com/huangyingting/serverless-face-blur-service).
 
   ![Github Copilot Lambda Migration](./github-copilot/Github-Copilot-Lambda-Migration.png)
+
+### Modernize Java Applications with Copilot
+Copilot can help you modernize Java applications by suggesting code improvements, refactoring, and optimizing performance.
+
+Refer to
+[Java Migration Copilot Samples](https://github.com/huangyingting/java-migration-copilot-samples/)
+
+![Github Copilot Java Modernization](./github-copilot/Github-Copilot-Java-Modernization.png)
