@@ -1,0 +1,198 @@
+name: Build and Push Container Images
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    paths:
+      - 'src/**'
+      - 'Dockerfile*'
+      - '.dockerignore'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+      - 'Dockerfile*'
+      - '.dockerignore'
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to build (all, service1, service2, service3)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - service1
+        - service2
+        - service3
+
+env:
+  REGISTRY: ${{ secrets.ACR_LOGIN_SERVER }}
+  REGISTRY_USERNAME: ${{ secrets.ACR_USERNAME }}
+  REGISTRY_PASSWORD: ${{ secrets.ACR_PASSWORD }}
+
+jobs:
+  setup:
+    name: Setup Build Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.set-matrix.outputs.services }}
+    steps:
+    - name: Set service matrix
+      id: set-matrix
+      run: |
+        if [ "${{ github.event.inputs.service }}" == "all" ] || [ "${{ github.event.inputs.service }}" == "" ]; then
+          echo 'services=["service1", "service2", "service3"]' >> $GITHUB_OUTPUT
+        else
+          echo 'services=["${{ github.event.inputs.service }}"]' >> $GITHUB_OUTPUT
+        fi
+
+  build-and-push:
+    name: Build and Push ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: setup
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.setup.outputs.services) }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Azure Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ env.REGISTRY_USERNAME }}
+        password: ${{ env.REGISTRY_PASSWORD }}
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/copilotx/${{ matrix.service }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+
+    - name: Check if Dockerfile exists
+      id: dockerfile-check
+      run: |
+        if [ -f "src/${{ matrix.service }}/Dockerfile" ]; then
+          echo "dockerfile_path=src/${{ matrix.service }}/Dockerfile" >> $GITHUB_OUTPUT
+          echo "context=src/${{ matrix.service }}" >> $GITHUB_OUTPUT
+          echo "exists=true" >> $GITHUB_OUTPUT
+        elif [ -f "Dockerfile.${{ matrix.service }}" ]; then
+          echo "dockerfile_path=Dockerfile.${{ matrix.service }}" >> $GITHUB_OUTPUT
+          echo "context=." >> $GITHUB_OUTPUT
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Create placeholder Dockerfile
+      if: steps.dockerfile-check.outputs.exists == 'false'
+      run: |
+        mkdir -p src/${{ matrix.service }}
+        cat > src/${{ matrix.service }}/Dockerfile << 'EOF'
+        FROM nginx:alpine
+        
+        # Copy custom nginx config if exists
+        # COPY nginx.conf /etc/nginx/nginx.conf
+        
+        # Copy static content
+        RUN echo '<h1>${{ matrix.service }} - CopilotX</h1>' > /usr/share/nginx/html/index.html
+        RUN echo '<p>This is a placeholder for ${{ matrix.service }}.</p>' >> /usr/share/nginx/html/index.html
+        RUN echo '<p>Replace this Dockerfile with your actual application.</p>' >> /usr/share/nginx/html/index.html
+        
+        EXPOSE 80
+        CMD ["nginx", "-g", "daemon off;"]
+        EOF
+        echo "dockerfile_path=src/${{ matrix.service }}/Dockerfile" >> $GITHUB_OUTPUT
+        echo "context=src/${{ matrix.service }}" >> $GITHUB_OUTPUT
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: ${{ steps.dockerfile-check.outputs.context || format('src/{0}', matrix.service) }}
+        file: ${{ steps.dockerfile-check.outputs.dockerfile_path || format('src/{0}/Dockerfile', matrix.service) }}
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        platforms: linux/amd64
+
+    - name: Generate SBOM
+      if: github.event_name != 'pull_request'
+      uses: anchore/sbom-action@v0
+      with:
+        image: ${{ env.REGISTRY }}/copilotx/${{ matrix.service }}:${{ github.sha }}
+        format: spdx-json
+        output-file: sbom-${{ matrix.service }}.spdx.json
+
+    - name: Upload SBOM
+      if: github.event_name != 'pull_request'
+      uses: actions/upload-artifact@v4
+      with:
+        name: sbom-${{ matrix.service }}
+        path: sbom-${{ matrix.service }}.spdx.json
+
+  security-scan:
+    name: Security Scan ${{ matrix.service }}
+    runs-on: ubuntu-latest
+    needs: [setup, build-and-push]
+    if: github.event_name != 'pull_request'
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.setup.outputs.services) }}
+    
+    steps:
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        image-ref: ${{ env.REGISTRY }}/copilotx/${{ matrix.service }}:${{ github.sha }}
+        format: sarif
+        output: trivy-${{ matrix.service }}.sarif
+        severity: 'CRITICAL,HIGH'
+
+    - name: Upload Trivy scan results
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: trivy-${{ matrix.service }}.sarif
+        category: trivy-${{ matrix.service }}
+
+  build-summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [setup, build-and-push]
+    if: always()
+    
+    steps:
+    - name: Create build summary
+      run: |
+        echo "## 🐳 Container Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Built Images:" >> $GITHUB_STEP_SUMMARY
+        for service in $(echo '${{ needs.setup.outputs.services }}' | jq -r '.[]'); do
+          echo "- **$service**: ${{ env.REGISTRY }}/copilotx/$service:${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        done
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Registry Information:" >> $GITHUB_STEP_SUMMARY
+        echo "- **Registry**: ${{ env.REGISTRY }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Repository**: copilotx/*" >> $GITHUB_STEP_SUMMARY
+        echo "- **Tag**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📋 Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Images are ready for deployment to AKS" >> $GITHUB_STEP_SUMMARY
+        echo "2. Run the app deployment workflow to deploy to Kubernetes" >> $GITHUB_STEP_SUMMARY
+        echo "3. Security scans will be available in the Security tab" >> $GITHUB_STEP_SUMMARY
